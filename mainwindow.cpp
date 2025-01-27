@@ -7,15 +7,22 @@
 #include <QTextCodec>
 #include <QRegularExpression>
 #include <QProcess>
-QString path, broil;
-QString ckie, format, mp4d[30][6], webmd[30][6], T, lage;
+#include <QtConcurrent>
+QString path, broil,
+    ckie, format,
+    formatd[3][30][6],
+    T, lage;
 std::string logs;
+
+const int mp4=0, webm=1, audio=2;
+
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->tabWidget->setTabEnabled(2, false);
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinMaxButtonsHint);
 
 }
@@ -26,9 +33,39 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void dload(std::string beb){
+    system(beb.c_str());
+}
 
-void MainWindow::on_download_clicked()
-{
+void fchange(QComboBox *list, QString &naming, QComboBox *first, QComboBox *second, QComboBox *third){
+    if(int(list->currentIndex())==0 && !first->itemText(first->currentIndex()).isEmpty()){
+        format=" -f "+formatd[mp4][first->currentIndex()][5];
+        naming+= " ["+QRegularExpression("\\b\\d+\\.\\w+iB\\b").match(first->itemText(first->currentIndex())).captured(0)+"]";
+        if(!third->itemText(third->currentIndex()).isEmpty()){
+            format+="+"+formatd[audio][third->currentIndex()][5]+" ";
+            naming+=" "+third->itemText(third->currentIndex()).trimmed();
+        } else format+="+140 ";
+    }
+
+    if(int(list->currentIndex())==1 && !third->itemText(third->currentIndex()).isEmpty()){
+        format=" -f "+formatd[audio][third->currentIndex()][5]+" ";
+        naming+=" "+third->itemText(third->currentIndex()).trimmed()+".mp3";
+    }
+
+
+    if(int(list->currentIndex())==2 && !second->itemText(second->currentIndex()).isEmpty()){
+        format=" -f "+formatd[webm][second->currentIndex()][5];
+        naming+= " ["+QRegularExpression("\\b\\d+\\.\\w+iB\\b").match(second->itemText(second->currentIndex())).captured(0)+"]";
+        if(!third->itemText(third->currentIndex()).isEmpty()){
+            format+="+"+formatd[audio][third->currentIndex()][5]+" ";
+            naming+=" "+third->itemText(third->currentIndex()).trimmed();
+        } else format+="+140 ";
+
+}
+}
+
+
+void MainWindow::on_download_clicked(){
     QString part="";
     if ((ui->LINK->text().toStdString().find("https://www.youtube.com/")!=0
         && ui->LINK->text().toStdString().find("https://youtube.com/")!=0
@@ -45,43 +82,37 @@ void MainWindow::on_download_clicked()
         ui->LINK->clear();
     }
 
-    else{
-    ui->LINK->setPlaceholderText("https://youtu.be/");
-    readwithlines(settings, &broil, 1);
-    readwithlines(settings, &path, 2);
-    readwithlines(settings, &ckie, 3);
-    readwithlines(settings, &lage, 4);
-    if(lage=="true") logs=" > log.txt"; else logs.clear();
-    if(ckie=="true") part=" --cookies-from-browser "+broil;
-    std::string stdpath = "\""+QTextCodec::codecForName("Windows-1251")->fromUnicode(path).toStdString()+"\"";
-    switch(ui->Format->currentIndex()){
-    case 0:
-        format = " -S ext:mp4:m4a ";
-        break;
-    case 1:
-        format = " -x --audio-format mp3 ";
-        break;
-    case 2:
-        format = " ";
-        break;}
-    QString naming=" -o \"%(title)s";
-    if (int(ui->Format->currentIndex()==0 && !ui->mp4list->itemText(ui->mp4list->currentIndex()).isEmpty())){
-        format=" -f "+mp4d[ui->mp4list->currentIndex()][5]+"+140 ";
-        naming+= " ["+QRegularExpression("\\b\\d+\\.\\w+iB\\b").match(ui->mp4list->itemText(ui->mp4list->currentIndex())).captured(0)+"]";;
-    }
-    if (int(ui->Format->currentIndex()==2 && !ui->webmlist->itemText(ui->webmlist->currentIndex()).isEmpty())){
-        format=" -f "+webmd[ui->webmlist->currentIndex()][5]+"+140 ";
-        naming+=" ["+QRegularExpression("\\b\\d+\\.\\w+iB\\b").match(ui->webmlist->itemText(ui->webmlist->currentIndex())).captured(0)+"]";;
-    }
-    naming+="\"";
-    QString vizov="yt-dlp"+naming+part+" -P ";
-    std::string based = vizov.toStdString()+stdpath+format.toStdString()+ui->LINK->text().toStdString()+logs;
-    //qDebug() << format;
-    //qDebug() << based;
-    system(based.c_str());
-    }
 
+    else{
+        //ПЕРЕСТРОЙКА НАХУЙ
+        ui->LINK->setPlaceholderText("https://youtu.be/");
+        readwithlines(settings, &broil, 1);
+        readwithlines(settings, &path, 2);
+        readwithlines(settings, &ckie, 3);
+        readwithlines(settings, &lage, 4);
+    QString naming=" -o \"%(title)s";
+        std::string stdpath = "\""+QTextCodec::codecForName("Windows-1251")->fromUnicode(path).toStdString()+"\"";
+        switch(ui->Format->currentIndex()){
+        case 0:
+            format = " -S ext:mp4:m4a ";
+            break;
+        case 1:
+            format = " -x --audio-format mp3 ";
+            break;
+        case 2:
+            format = " ";
+            break;}
+        fchange(ui->Format, naming, ui->mp4list, ui->webmlist, ui->audiolist);
+        naming+="\"";
+        std::string call="yt-dlp"+naming.toStdString();
+        if(ckie=="true") call+=" --cookies-from-browser "+broil.toStdString();
+        call+=" -P "+stdpath+format.toStdString()+ui->LINK->text().toStdString();
+        if(lage=="true") call+=" > log.txt";
+        //qDebug() << call;
+        Q_UNUSED(QtConcurrent::run(dload, call));
+    }
 }
+
 
 
 void MainWindow::on_datacall_clicked()
@@ -108,51 +139,24 @@ void MainWindow::on_datacall_clicked()
         output.waitForFinished();
         //qDebug() << args;
         QFile data("data.txt");
-        int i=0, a=0;
+        int cmp4=0, cwebm=0, cdub=0;
         data.open(QIODevice::ReadOnly | QIODevice::Text);
-        while(data.readLine().toStdString().find("---"));
+        while(data.readLine().toStdString().find("-----"));
+
         while(!data.atEnd()){
             T=data.readLine();
-            if(T.contains("mp4") && !T.contains("audio")){
-                mp4d[i][0]=T.split(' ').at(0);
-                mp4d[i][1]=QRegularExpression("\\b\\d+x\\d+\\b").match(T).captured(0);
-                if(T.contains("vp09")) {mp4d[i][2]="vp09";}
-                if(T.contains("avc1")) {mp4d[i][2]="h264";}
-                if(T.contains("av01")) {mp4d[i][2]="av01";}
-                mp4d[i][3]=QRegularExpression("\\b\\w+k\\b").match(T).captured(0);
-                mp4d[i][4]=" (≈"+QRegularExpression("\\b\\d+\\.\\w+iB\\b").match(T).captured(0)+")";
-               // qDebug() << mp4d[i][0] << mp4d[i][1] << mp4d[i][2] << mp4d[i][3] << mp4d[i][4];
-                i++;
-            }
-            if(T.contains("webm") && !T.contains("audio")){
-                webmd[a][0]=T.split(' ').at(0);
-                webmd[a][1]=QRegularExpression("\\b\\d+x\\d+\\b").match(T).captured(0);
-                if(T.contains("vp9")) {webmd[a][2]="vp09";}
-                if(T.contains("avc1")) {webmd[a][2]="h264";}
-                if(T.contains("av01")) {webmd[a][2]="av01";}
-                webmd[a][3]=QRegularExpression("\\b\\w+k\\b").match(T).captured(0);
-                webmd[a][4]=" (≈"+QRegularExpression("\\b\\d+\\.\\w+iB\\b").match(T).captured(0)+")";
-                a++;
-            }
+            if(T.contains("mp4") && !T.contains("audio") && T.contains("video only")){
+                putformat(formatd[mp4], cmp4, T);}
+            else if(T.contains("webm") && !T.contains("audio")){
+                putformat(formatd[webm], cwebm, T);}
+            else if(T.contains(QRegularExpression("140-\\d"))){
+                ui->tabWidget->setTabEnabled(2, true);
+                putaudio(formatd[audio], cdub, T);}
         }
-        ui->mp4list->clear();
-        ui->webmlist->clear();
-        int m=0;
-        for(int j=i-1; j>0; j--){
-            QString tttemp;
-            tttemp=mp4d[j][1]+" "+mp4d[j][3]+" "+mp4d[j][2]+mp4d[j][4];
-            mp4d[m][5]=mp4d[j][0];
-            ui->mp4list->addItem(tttemp);
-            m++;
-        }
-        int w=0;
-        for(int j=a-1; j>0; j--){
-            QString tttemp;
-            tttemp=webmd[j][1]+" "+webmd[j][3]+" "+webmd[j][2]+webmd[j][4];
-            webmd[w][5]=webmd[j][0];
-            ui->webmlist->addItem(tttemp);
-            w++;
-        }
+        boxclear(ui->mp4list, ui->webmlist, ui->audiolist);
+        additems(formatd[mp4], cmp4, ui->mp4list);
+        additems(formatd[webm], cwebm, ui->webmlist);
+        additems(formatd[audio], cdub, ui->audiolist);
         data.close();
     }
 
@@ -161,10 +165,13 @@ void MainWindow::on_datacall_clicked()
 
 
 
+
 void MainWindow::on_LINK_textChanged()
 {
-    ui->mp4list->clear();
-    ui->webmlist->clear();
+    if(ui->tabWidget->currentIndex()==2) ui->tabWidget->setCurrentIndex(0);
+    ui->tabWidget->setTabEnabled(2, false);
+
+    boxclear(ui->mp4list, ui->webmlist, ui->audiolist);
 }
 
 
@@ -185,7 +192,4 @@ void MainWindow::on_pushButton_clicked()
     ui->LINK->clear();
     ui->LINK->setPlaceholderText("https://youtu.be/");
 }
-
-
-
 
