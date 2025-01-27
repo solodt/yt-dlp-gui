@@ -84,7 +84,7 @@ void MainWindow::on_download_clicked(){
 
 
     else{
-        //ПЕРЕСТРОЙКА НАХУЙ
+
         ui->LINK->setPlaceholderText("https://youtu.be/");
         readwithlines(settings, &broil, 1);
         readwithlines(settings, &path, 2);
