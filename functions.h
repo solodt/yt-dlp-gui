@@ -39,9 +39,8 @@ void putformat(QString formatd[][6], int &counter, QString T){
 
 void putaudio(QString formatd[][6], int &counter, QString T){
     formatd[counter][0]=T.split(' ').at(0);
-    QString lang=QRegularExpression("\\[([^\\]]+)\\]\\s+([^,]+)").match(T).captured(0);
-    qDebug() << lang;
-    formatd[counter][1]=lang;
+    //qDebug() << lang;
+    formatd[counter][1]=QRegularExpression("\\[([^\\]]+)\\]\\s+([^,]+)").match(T).captured(0);
     counter++;
 }
 

@@ -12,10 +12,8 @@ QString path, broil,
     ckie, format,
     formatd[3][30][6],
     T, lage;
-std::string logs;
 
 const int mp4=0, webm=1, audio=2;
-
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -81,8 +79,6 @@ void MainWindow::on_download_clicked(){
         else{ui->LINK->setPlaceholderText("Введите ссылку на видео!");}
         ui->LINK->clear();
     }
-
-
     else{
 
         ui->LINK->setPlaceholderText("https://youtu.be/");
@@ -90,7 +86,7 @@ void MainWindow::on_download_clicked(){
         readwithlines(settings, &path, 2);
         readwithlines(settings, &ckie, 3);
         readwithlines(settings, &lage, 4);
-    QString naming=" -o \"%(title)s";
+        QString naming=" -o \"%(title)s";
         std::string stdpath = "\""+QTextCodec::codecForName("Windows-1251")->fromUnicode(path).toStdString()+"\"";
         switch(ui->Format->currentIndex()){
         case 0:
@@ -106,7 +102,11 @@ void MainWindow::on_download_clicked(){
         naming+="\"";
         std::string call="yt-dlp"+naming.toStdString();
         if(ckie=="true") call+=" --cookies-from-browser "+broil.toStdString();
-        call+=" -P "+stdpath+format.toStdString()+ui->LINK->text().toStdString();
+        call+=" -P "+stdpath+format.toStdString();
+        if(ui->TimeMax->time()!=ui->TimeMin->time() && ui->TimeMax->time()>ui->TimeMin->time()){call+="-vU ";}
+        call+=ui->LINK->text().toStdString();
+        if(ui->TimeMax->time()!=ui->TimeMin->time() && ui->TimeMax->time()>ui->TimeMin->time()){
+            call+=" --download-sections *"+ui->TimeMin->time().toString().toStdString()+"-"+ui->TimeMax->time().toString().toStdString();}
         if(lage=="true") call+=" > log.txt";
         //qDebug() << call;
         Q_UNUSED(QtConcurrent::run(dload, call));
@@ -139,24 +139,24 @@ void MainWindow::on_datacall_clicked()
         output.waitForFinished();
         //qDebug() << args;
         QFile data("data.txt");
-        int cmp4=0, cwebm=0, cdub=0;
+        int counter[3]{0,0,0};
         data.open(QIODevice::ReadOnly | QIODevice::Text);
         while(data.readLine().toStdString().find("-----"));
 
         while(!data.atEnd()){
             T=data.readLine();
             if(T.contains("mp4") && !T.contains("audio") && T.contains("video only")){
-                putformat(formatd[mp4], cmp4, T);}
+                putformat(formatd[mp4], counter[mp4], T);}
             else if(T.contains("webm") && !T.contains("audio")){
-                putformat(formatd[webm], cwebm, T);}
+                putformat(formatd[webm], counter[webm], T);}
             else if(T.contains(QRegularExpression("140-\\d"))){
                 ui->tabWidget->setTabEnabled(2, true);
-                putaudio(formatd[audio], cdub, T);}
+                putaudio(formatd[audio], counter[audio], T);}
         }
         boxclear(ui->mp4list, ui->webmlist, ui->audiolist);
-        additems(formatd[mp4], cmp4, ui->mp4list);
-        additems(formatd[webm], cwebm, ui->webmlist);
-        additems(formatd[audio], cdub, ui->audiolist);
+        additems(formatd[mp4], counter[mp4], ui->mp4list);
+        additems(formatd[webm], counter[webm], ui->webmlist);
+        additems(formatd[audio], counter[audio], ui->audiolist);
         data.close();
     }
 
@@ -181,7 +181,7 @@ void MainWindow::on_settings_clicked()
     if(this->pos().x()<320){
         posx=this->pos().x()+475;
     }
-    else {posx=this->pos().x()-275;}
+    else posx=this->pos().x()-275;
     options.move(posx, this->pos().y());
     options.show();
 }
